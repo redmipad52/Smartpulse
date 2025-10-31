@@ -1,0 +1,2093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Pulse – Quiz App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Roboto+Slab:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        :root {
+        --light-bg-start: #e0f7fa;
+        --light-bg-end: #f3f6f9; --light-text-color: #333; --light-wrap-bg: rgba(255, 255, 255, 0.9); --light-wrap-shadow: 0 16px 48px rgba(0, 0, 0, 0.18); --light-heading-color: #2c3e50;
+        --light-button-gradient-start: #00c6ff; --light-button-gradient-end: #0072ff; --light-button-shadow: 0 6px 20px rgba(0, 114, 255, 0.3); --light-back-button-bg: #e1e1e1; --light-back-button-color: #333; --light-back-button-border: 1px solid #ccc;
+        --light-option-border: #d0d0d0; --light-option-bg: #fff; --light-correct-border: #0a930a; --light-correct-bg: #e8f8e8; --light-incorrect-border: #c20000; --light-incorrect-bg: #fceaea; --light-correct-answer-highlight: #0a930a; --light-progress-bg: #ccc; --light-progress-fill: #007bff; --light-stopwatch-color: #007bff;
+        --light-toggle-bg: #fff; --light-jump-correct-bg: #c8f7c5; --light-jump-incorrect-bg: #f8cccc; --light-jump-neutral-bg: #eee; --light-jump-correct-color: #0a930a; --light-jump-incorrect-color: #c20000; --light-jump-neutral-color: #333; --light-jump-border: #aaa;
+        }
+        body.dark {
+        --light-bg-start: #000;
+        --light-bg-end: #000; --light-text-color: #f0f0f0; --light-wrap-bg: #1a1a1a; --light-wrap-shadow: 0 10px 35px rgba(0, 0, 0, 0.8); --light-heading-color: #f0f0f0; --light-button-gradient-start: #007bff; --light-button-gradient-end: #00c6ff;
+        --light-button-shadow: 0 6px 20px rgba(0, 123, 255, 0.4); --light-back-button-bg: #333; --light-back-button-color: #f0f0f0; --light-back-button-border: 1px solid #555; --light-option-border: #444; --light-option-bg: #222;
+        --light-correct-border: #3cb371; --light-correct-bg: #2d5a3f; --light-incorrect-border: #dc143c; --light-incorrect-bg: #5a2d3f; --light-correct-answer-highlight: #3cb371; --light-progress-bg: #444; --light-progress-fill: #66b3ff; --light-stopwatch-color: #66b3ff; --light-toggle-bg: #333; --light-jump-correct-bg: #3cb371;
+        --light-jump-incorrect-bg: #dc143c; --light-jump-neutral-bg: #444; --light-jump-correct-color: #fff; --light-jump-incorrect-color: #fff; --light-jump-neutral-color: #f0f0f0; --light-jump-border: #666;
+        }
+        html { box-sizing: border-box;
+        }
+        *, *::before, *::after { box-sizing: inherit;
+        }
+        body { margin: 0; font-family: 'Poppins', sans-serif; background: linear-gradient(to right, var(--light-bg-start), var(--light-bg-end));
+        color: var(--light-text-color); transition: background .5s, color .5s; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding: 20px;
+        box-sizing: border-box; overflow-x: hidden; }
+        #dp-wrap { max-width: 800px; width: 100%;
+        margin: 2rem auto; padding: 3.5rem; background: var(--light-wrap-bg); border-radius: 25px; box-shadow: var(--light-wrap-shadow); backdrop-filter: blur(15px) brightness(1.05);
+        border: 1px solid rgba(255, 255, 255, 0.25); transition: background .5s, box-shadow .5s, border .5s; position: relative;
+        }
+        #dp-wrap::before { content: ''; position: absolute; top: 10px; left: 10px; right: 10px;
+        bottom: 10px; border-radius: 15px; box-shadow: inset 6px 6px 12px rgba(0, 0, 0, 0.07), inset -6px -6px 12px rgba(255, 255, 255, 0.6);
+        pointer-events: none; transition: box-shadow .5s; }
+        body.dark #dp-wrap::before { box-shadow: inset 6px 6px 12px rgba(0, 0, 0, 0.7), inset -6px -6px 12px rgba(255, 255, 255, 0.03);
+        }
+        h2, h3, h4 { text-align: center; color: var(--light-heading-color); margin-bottom: 2rem;
+        font-family: 'Roboto Slab', serif; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.08); transition: color .5s;
+        }
+        #dpView p { margin-bottom: 1.2rem;
+        }
+        #dpView p strong { font-size: 1.3rem;
+        }
+        #dpView p:not(.stat) { font-size: 1.25rem; line-height: 1.7; margin-bottom: 1.5rem;
+        }
+        button { padding: 1rem 1.8rem; border: none; border-radius: 12px;
+        background: linear-gradient(to right, var(--light-button-gradient-start), var(--light-button-gradient-end)); color: #fff; font-weight: 600; cursor: pointer;
+        transition: background .3s, transform .2s cubic-bezier(.34, 1.56, .64, 1), box-shadow .3s; box-shadow: var(--light-button-shadow); text-transform: uppercase; letter-spacing: 0.8px; outline: none;
+        margin: 0.5rem; }
+        button:hover { transform: translateY(-4px) scale(1.03);
+        box-shadow: 0 10px 30px rgba(0, 114, 255, 0.5); }
+        button:active { transform: translateY(2px);
+        box-shadow: 0 5px 12px rgba(0, 114, 255, 0.25); }
+        button:disabled { opacity: 0.5;
+        cursor: not-allowed; transform: none; box-shadow: none; }
+        button.back-btn { background: var(--light-back-button-bg); color: var(--light-back-button-color);
+        border: var(--light-back-button-border); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12); margin-bottom: 1.5rem;
+        }
+        button.back-btn:hover { background: #cddcdc; transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2); }
+        body.dark button.back-btn:hover { background: #4a4a4a;
+        }
+        button.small-history-btn { padding: 0.7rem 0.9rem; font-size: 1.15rem; margin-left: 12px;
+        background: linear-gradient(to right, #a1c4fd, #c2e9fb); color: #333; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); text-transform: none; letter-spacing: normal;
+        flex-shrink: 0; border-radius: 9px; display: flex; justify-content: center; align-items: center;
+        }
+        body.dark button.small-history-btn { background: linear-gradient(to right, #4a7bff, #6ad4ff); color: #fff;
+        }
+        button.small-history-btn:hover { transform: translateY(-2px) scale(1.01);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
+        .topic-item-custom { display: flex;
+        align-items: center; justify-content: space-between; margin: .8rem 0; padding: 1rem 1.5rem; background: linear-gradient(to right, var(--light-button-gradient-start), var(--light-button-gradient-end)); color: #fff; font-weight: 600;
+        border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 114, 255, 0.3); cursor: pointer;
+        transition: background .3s, transform .2s cubic-bezier(.34, 1.56, .64, 1), box-shadow .3s; outline: none;
+        }
+        body.dark .topic-item-custom { background: linear-gradient(to right, #007bff, #00c6ff);
+        }
+        .topic-item-custom:hover { transform: translateY(-4px) scale(1.03);
+        box-shadow: 0 10px 30px rgba(0, 114, 255, 0.5); }
+        .topic-item-custom:active { transform: translateY(2px);
+        box-shadow: 0 5px 12px rgba(0, 114, 255, 0.25); }
+        .topic-item-content { flex-grow: 1;
+        display: flex; flex-direction: column; align-items: flex-start; text-align: left; min-width: 0;
+        }
+        .topic-item-name { font-size: 1.15rem; margin-bottom: 5px; white-space: normal; overflow-wrap: break-word; display: flex;
+        align-items: center; width: 100%; }
+        .topic-item-name .tick-icon { margin-left: 8px; margin-right: 0;
+        font-size: 1.3em; display: inline-block; animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0;
+        transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        .topic-item-question-count { font-size: 0.95em;
+        font-weight: normal; opacity: 0.7; color: rgba(255, 255, 255, 0.8); background: rgba(0, 0, 0, 0.1); padding: 3px 8px; border-radius: 6px;
+        margin-left: 0; white-space: nowrap; }
+        .history-button-wrapper { flex-shrink: 0; margin-left: 15px;
+        }
+        .option-card { border: 2px solid var(--light-option-border); border-radius: 15px; padding: 1.2rem;
+        margin: 1rem 0; cursor: pointer; transition: all .3s ease-in-out; background: var(--light-option-bg);
+        box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.06), -4px -4px 10px rgba(255, 255, 255, 0.6); display: flex; align-items: center;
+        gap: 1rem; font-size: 1.05rem; }
+        .option-card:hover:not(.selected) { transform: translateY(-4px) scale(1.007);
+        box-shadow: 6px 6px 18px rgba(0, 0, 0, 0.12), -6px -6px 18px rgba(255, 255, 255, 0.7); border-color: #90caff;
+        }
+        body.dark .option-card:hover:not(.selected) { border-color: #7ab3ff;
+        box-shadow: 6px 6px 18px rgba(0, 0, 0, 0.6), -6px -6px 18px rgba(255, 255, 255, 0.04);
+        }
+        .option-card.selected { cursor: default; pointer-events: none;
+        }
+        .option-card.correct { border-color: var(--light-correct-border); background: var(--light-correct-bg);
+        box-shadow: inset 3px 3px 6px rgba(10, 147, 10, 0.25), inset -3px -3px 6px rgba(10, 147, 10, 0.6); color: var(--light-correct-border);
+        }
+        .option-card.incorrect { border-color: var(--light-incorrect-border); background: var(--light-incorrect-bg);
+        box-shadow: inset 3px 3px 6px rgba(194, 0, 0, 0.25), inset -3px -3px 6px rgba(194, 0, 0, 0.6); color: var(--light-incorrect-border);
+        }
+        .option-card.correctAnswer { border-color: var(--light-correct-answer-highlight); background: var(--light-correct-bg);
+        box-shadow: inset 3px 3px 6px rgba(10, 147, 10, 0.25), inset -3px -3px 6px rgba(10, 147, 10, 0.6);
+        }
+        body.dark .option-card.correct { box-shadow: inset 3px 3px 6px rgba(60, 179, 113, 0.25), inset -3px -3px 6px rgba(60, 179, 113, 0.6);
+        color: var(--light-correct-border); }
+        body.dark .option-card.incorrect { box-shadow: inset 3px 3px 6px rgba(220, 20, 60, 0.25), inset -3px -3px 6px rgba(220, 20, 60, 0.6);
+        color: var(--light-incorrect-border); }
+        body.dark .option-card.correctAnswer { box-shadow: inset 3px 3px 6px rgba(60, 179, 113, 0.25), inset -3px -3px 6px rgba(60, 179, 113, 0.6);
+        }
+        canvas {
+            display: block;
+        width: 100%;    
+            max-width: 400px; 
+            margin: 2.5rem auto;
+            padding: 1.2rem;
+            background: var(--light-wrap-bg);
+            border-radius: 18px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            max-height: 50vh;
+        }
+        body.dark canvas { box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+        }
+        .stat { text-align: center; margin: .7rem 0; font-size: 1.15rem;
+        }
+        .stat strong { font-weight: 700; color: var(--light-heading-color);
+        }
+        #progressBar { height: 12px; background: var(--light-progress-bg); border-radius: 5px; margin: 1.2rem auto;
+        overflow: hidden; box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.12); max-width: 800px; width: 90%;
+        }
+        #progressFill { height: 100%; width: 0%; background: var(--light-progress-fill);
+        transition: width 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); border-radius: 5px; box-shadow: 1px 1px 6px rgba(0, 123, 255, 0.4);
+        }
+        .theme-toggle { position: fixed; top: 20px; right: 20px; background: var(--light-toggle-bg);
+        border: 1px solid var(--light-option-border); border-radius: 50%; font-size: 1.6rem; padding: .75rem; cursor: pointer; z-index: 1001;
+        box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.12), -4px -4px 10px rgba(255, 255, 255, 0.6); transition: all .3s ease-in-out;
+        }
+        .theme-toggle:hover { transform: translateY(-3px);
+        box-shadow: 6px 6px 15px rgba(0, 0, 0, 0.18), -6px -6px 15px rgba(255, 255, 255, 0.7);
+        }
+        body.dark .theme-toggle { box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.6), -4px -4-4px 10px rgba(255, 255, 255, 0.03);
+        }
+        body.dark .theme-toggle:hover { box-shadow: 6px 6px 15px rgba(0, 0, 0, 0.7), -6px -6px 15px rgba(255, 255, 255, 0.04);
+        }
+        #stopwatch { text-align: center; font-size: 1.4rem; font-weight: 700; margin-bottom: 1.2rem; color: var(--light-stopwatch-color);
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05); }
+        #jumpMenu { margin-top: 1.8rem;
+        padding-top: 1.2rem; border-top: 1px dashed var(--light-option-border); }
+        #jumpMenu p { text-align: center;
+        margin-bottom: 1.2rem; font-weight: 600; color: var(--light-heading-color); }
+        #jumpMenu button { padding: .5rem .9rem;
+        border-radius: 9px; font-size: .95rem; transition: all .2s ease; box-shadow: 2px 2px 6px rgba(0,0,0,0.06); margin: .3rem; min-width: 40px; height: 40px;
+        }
+        #jumpMenu button:hover { transform: translateY(-2.5px) scale(1.025); box-shadow: 3px 3px 9px rgba(0,0,0,0.12);
+        }
+        #jumpMenu button[style*="background:#c8f7c5"] { background: var(--light-jump-correct-bg) !important; color: var(--light-jump-correct-color) !important; border-color: var(--light-correct-border) !important;
+        }
+        #jumpMenu button[style*="background:#f8cccc"] { background: var(--light-jump-incorrect-bg) !important; color: var(--light-jump-incorrect-color) !important; border-color: var(--light-incorrect-border) !important;
+        }
+        #jumpMenu button[style*="background:#eee"] { background: var(--light-jump-neutral-bg) !important; color: var(--light-jump-neutral-color) !important; border-color: var(--light-jump-border) !important;
+        }
+        body.dark #jumpMenu button[style*="background:#c8f7c5"] { background: var(--light-jump-correct-bg) !important; color: var(--light-jump-correct-color) !important;
+        border-color: var(--light-correct-border) !important; }
+        body.dark #jumpMenu button[style*="background:#f8cccc"] { background: var(--light-jump-incorrect-bg) !important;
+        color: var(--light-jump-incorrect-color) !important; border-color: var(--light-incorrect-border) !important; }
+        body.dark #jumpMenu button[style*="background:#eee"] { background: var(--light-jump-neutral-bg) !important;
+        color: var(--light-jump-neutral-color) !important; border-color: var(--light-jump-border) !important; }
+        .history-actions { display: flex; justify-content: flex-end;
+        gap: 12px; margin-top: 18px; }
+        .history-actions button { padding: 0.7rem 1.3rem; font-size: 0.9rem;
+        border-radius: 9px; box-shadow: 0 3px 6px rgba(0,0,0,0.12); text-transform: none; letter-spacing: normal; flex-shrink: 0;
+        }
+        .history-actions button.delete-btn { background: #dc3545; color: white;
+        }
+        .history-actions button.delete-btn:hover { background: #c82333;
+        }
+        .history-actions button.view-solutions-btn { background: #17a2b8; color: white;
+        }
+        .history-actions button.view-solutions-btn:hover { background: #138496;
+        }
+        .qb-list-item { display: flex; align-items: center; padding: 1rem 1.5rem; margin-bottom: 10px;
+        background: linear-gradient(to right, #ffffff, #f0f2f5); color: var(--light-text-color); font-weight: 600; border-radius: 12px; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e0e0e0; cursor: pointer; transition: transform .2s ease-in-out, box-shadow .2s ease-in-out, background .2s; flex-grow: 1; position: relative;
+        }
+        .qb-list-item::before { content: ''; position: absolute; top: 5px; left: 5px; right: 5px;
+        bottom: 5px; border-radius: 9px; box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.05), inset -2px -2px 5px rgba(255, 255, 255, 0.5);
+        pointer-events: none; }
+        body.dark .qb-list-item { background: linear-gradient(to right, #2a2a2a, #3a3a3a);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4); border: 1px solid #444;
+        }
+        body.dark .qb-list-item::before { box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.6), inset -2px -2px 5px rgba(50, 50, 50, 0.2);
+        }
+        .qb-list-item:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        background: linear-gradient(to right, #eaf2f8, #f5f8fc); }
+        body.dark .qb-list-item:hover { box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+        background: linear-gradient(to right, #3a3a3a, #4a4a4a); }
+        .qb-list-item .icon { font-size: 1.8rem; margin-right: 15px;
+        color: #007bff; flex-shrink: 0; }
+        body.dark .qb-list-item .icon { color: #66b3ff;
+        }
+        .qb-list-item .subject-name { flex-grow: 1; font-size: 1.15rem; font-weight: 600; color: var(--light-heading-color);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        body.dark .qb-list-item .subject-name { color: var(--light-text-color);
+        }
+        .qb-list-item .progress-percentage { font-size: 1.05rem; font-weight: 600; color: #007bff; margin-left: 15px;
+        min-width: 45px; text-align: right; flex-shrink: 0; }
+        body.dark .qb-list-item .progress-percentage { color: #66b3ff;
+        }
+        .qb-list-item .arrow-icon { font-size: 1.2rem; color: #999; margin-left: 10px; flex-shrink: 0;
+        }
+        body.dark .qb-list-item .arrow-icon { color: #bbb;
+        }
+        .delete-qb-button { background: none; border: none; font-size: 2rem; color: #e74c3c; cursor: pointer;
+        padding: 5px; border-radius: 8px; transition: transform .2s, color .2s, background-color .2s; margin-left: 10px; flex-shrink: 0; box-shadow: none;
+        }
+        .delete-qb-button:hover { transform: translateY(-2px) scale(1.05); color: #c0392b; background-color: rgba(231, 76, 60, 0.1);
+        box-shadow: none; }
+        .delete-qb-button:active { transform: translateY(0); box-shadow: none;
+        }
+        body.dark .delete-qb-button { color: #ff6b6b;
+        }
+        body.dark .delete-qb-button:hover { color: #ff4747; background-color: rgba(255, 107, 107, 0.1);
+        }
+        .qb-item-wrapper { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 15px;
+        }
+        .qb-list { list-style: none; padding: 0; margin: 0;
+        }
+        #dpView .page-header { margin-bottom: 2rem; padding-left: 0; padding-right: 0; text-align: left;
+        width: 100%; display: flex; flex-direction: column; align-items: flex-start; }
+        #dpView .page-header h2 { text-align: left;
+        margin-bottom: 0; font-size: 2.2rem; color: var(--light-heading-color); font-weight: 700; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; padding: 0 20px; box-sizing: border-box;
+        width: 100%; }
+        #dpView .page-header .sub-heading { text-align: left; margin-top: 5px; font-size: 1rem;
+        color: #777; font-weight: 400; text-transform: uppercase; letter-spacing: 0.5px; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; padding: 0 20px; box-sizing: border-box;
+        width: 100%; }
+        body.dark #dpView .page-header .sub-heading { color: #bbb;
+        }
+        .topic-list { list-style: none; padding: 0; margin: 0;
+        }
+        .file-upload-btn { padding: 1rem 1.8rem; border: none; border-radius: 12px;
+        background: linear-gradient(to right, #6dd5ed, #2193b0); color: #fff; font-weight: 600; cursor: pointer;
+        transition: background .3s, transform .2s cubic-bezier(.34, 1.56, .64, 1), box-shadow .3s; box-shadow: 0 6px 20px rgba(33, 147, 176, 0.3);
+        text-transform: uppercase; letter-spacing: 0.8px; outline: none; margin: 0.5rem; display: inline-block;
+        }
+        .file-upload-btn:hover { transform: translateY(-4px) scale(1.03);
+        box-shadow: 0 10px 30px rgba(33, 147, 176, 0.5); }
+        body.dark .file-upload-btn { background: linear-gradient(to right, #2193b0, #6dd5ed);
+        box-shadow: 0 6px 20px rgba(33, 147, 176, 0.4); }
+        body.dark .file-upload-btn:hover { box-shadow: 0 10px 30px rgba(33, 147, 176, 0.6);
+        }
+        .question-textarea, .explanation-textarea { width: 100%; height: 150px; padding: 1rem; font-size: 1.15rem;
+        border-radius: 10px; border: 1px solid var(--light-option-border); background-color: var(--light-option-bg); color: var(--light-text-color); box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.06);
+        resize: vertical; margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif; }
+        .question-options-edit { display: flex;
+        flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; }
+        .question-options-edit input { padding: 0.8rem;
+        font-size: 1rem; border-radius: 8px; border: 1px solid var(--light-option-border); background-color: var(--light-option-bg); color: var(--light-text-color);
+        }
+        .question-options-edit select { padding: 0.8rem; font-size: 1rem; border-radius: 8px;
+        border: 1px solid var(--light-option-border); background-color: var(--light-option-bg); color: var(--light-text-color); margin-top: 1rem;
+        }
+        .image-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; margin-bottom: 15px;
+        }
+        .image-container.single-image img, .image-container.explanation-images img { max-width: 100%; height: auto; max-height: 300px;
+        object-fit: contain; }
+        .image-thumbnail { position: relative; width: 100px; height: 100px; border-radius: 8px;
+        overflow: hidden; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15); border: 1px solid var(--light-option-border);
+        }
+        .image-thumbnail img { width: 100%; height: 100%; object-fit: cover;
+        }
+        .image-thumbnail .delete-image { position: absolute; top: 5px; right: 5px;
+        background: rgba(220, 53, 69, 0.8); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; line-height: 24px; text-align: center;
+        font-size: 1.2rem; cursor: pointer; opacity: 0; transition: opacity 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.3); padding: 0; margin: 0;
+        }
+        .image-thumbnail:hover .delete-image { opacity: 1;
+        }
+        #explanation-container { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--light-option-border);
+        animation: slideIn 0.5s ease-out; }
+        @keyframes slideIn { from { transform: translateY(20px);
+        opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .quiz-util-top { 
+            display: flex;
+        flex-wrap: wrap; 
+            gap: 0.5rem; 
+            justify-content: center; 
+            margin-bottom: 1.5rem; 
+            margin-top: 1rem;
+        }
+        .quiz-util-top button { 
+            padding: 0.5rem 0.8rem;
+        font-size: 0.9rem; 
+            text-transform: none; 
+            letter-spacing: 0; 
+            background: var(--light-back-button-bg); 
+            color: var(--light-back-button-color); 
+            border: var(--light-back-button-border);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+        line-height: 1.2; 
+        }
+        .quiz-util-top button:hover { 
+            background: #cddcdc;
+        transform: translateY(-2px); 
+        }
+        body.dark .quiz-util-top button {
+            background: #333;
+        color: #f0f0f0;
+            border: 1px solid #555;
+        }
+        body.dark .quiz-util-top button:hover {
+            background: #4a4a4a;
+        }
+        .quiz-nav-bottom { 
+            display: flex;
+        gap: 1rem; 
+            justify-content: center; 
+        }
+        .quiz-nav-bottom button { 
+            flex-grow: 1;
+        max-width: 300px; 
+        }
+
+        #confirmation-overlay {
+            position: fixed;
+        top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #confirmation-modal {
+            background: var(--light-wrap-bg);
+        padding: 2.5rem;
+            border-radius: 15px;
+            box-shadow: var(--light-wrap-shadow);
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+        }
+        #confirmation-modal p {
+            font-size: 1.2rem;
+        color: var(--light-text-color);
+            margin-bottom: 2rem;
+        }
+        #confirmation-modal .modal-buttons {
+            display: flex;
+        justify-content: center;
+            gap: 1rem;
+        }
+        #confirmation-modal .modal-buttons button {
+            padding: 0.8rem 1.5rem;
+        }
+        #confirmation-modal .modal-buttons button.confirm-yes {
+            background: #28a745;
+        }
+        #confirmation-modal .modal-buttons button.confirm-no {
+            background: var(--light-back-button-bg);
+        color: var(--light-back-button-color);
+            border: var(--light-back-button-border);
+        }
+
+        .reorder-btn {
+            background: #6c757d;
+            margin-left: 10px;
+        }
+        .reorder-btn.active {
+            background: #28a745;
+        }
+        .reorder-controls {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+        .qb-list-item.reordering .reorder-controls {
+            display: flex; 
+        }
+        .reorder-controls button {
+            background: none;
+            border: none;
+            box-shadow: none;
+            padding: 0.2rem 0.5rem;
+            font-size: 1.5rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #007bff;
+        }
+        .reorder-controls button:hover {
+            transform: none;
+            color: #0056b3;
+        }
+        .reorder-controls button:disabled {
+            color: #ccc;
+            cursor: not-allowed;
+            opacity: 1;
+        }
+        
+        /* --- AUTHENTICATION STYLES --- */
+        #auth-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 2rem auto;
+            padding: 2rem;
+            border: 1px solid var(--light-option-border);
+            border-radius: 15px;
+            background: var(--light-option-bg);
+        }
+        #auth-container input {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--light-option-border);
+            background-color: var(--light-option-bg);
+            color: var(--light-text-color);
+            margin-bottom: 1rem;
+            box-sizing: border-box;
+        }
+        #auth-container button {
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+        #auth-container p {
+            text-align: center;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+        #auth-container p a {
+            color: var(--light-stopwatch-color);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        #auth-error {
+            text-align: center;
+            color: #c20000;
+            margin-top: 1rem;
+            font-weight: 600;
+            display: none; 
+        }
+        #signup-view {
+            display: none; 
+        }
+        #user-status {
+            width: 100%;
+            padding: 0.5rem;
+            background: var(--light-jump-neutral-bg);
+            border-radius: 8px;
+            display: none; 
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        #user-status-info {
+            font-size: 0.9rem;
+        }
+        #user-status-info span {
+            font-weight: 600;
+            color: var(--light-heading-color);
+        }
+        #user-status-info button {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            margin-left: 1rem;
+            background: var(--light-back-button-bg);
+            color: var(--light-back-button-color);
+            border: var(--light-back-button-border);
+            text-transform: none;
+        }
+        #sync-controls {
+            display: flex;
+            gap: 1rem;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap; 
+        }
+        #sync-controls button {
+            padding: 0.7rem 1rem;
+            font-size: 0.9rem;
+            text-transform: none;
+            letter-spacing: 0;
+            width: 45%; 
+            max-width: 200px;
+            min-width: 140px; 
+        }
+        #upload-btn {
+            background: #28a745;
+        }
+        #download-btn {
+            background: #17a2b8;
+        }
+        
+        #app-loader {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            padding: 2rem;
+            display: none; 
+        }
+        
+        @media (max-width: 600px) {
+        body { padding: 10px;
+        }
+        #dp-wrap { padding: 1.8rem; margin: 1rem auto; border-radius: 18px;
+        }
+        #dp-wrap::before { border-radius: 12px;
+        }
+        button { padding: .7rem 1.2rem; font-size: 0.95rem;
+        }
+        .option-card { padding: 1rem; font-size: 1rem;
+        }
+        h2 { font-size: 1.9rem;
+        margin-bottom: 1.5rem;}
+        h3 { font-size: 1.6rem;
+        }
+        h4 { font-size: 1.3rem;
+        }
+        #dpView p strong { font-size: 1.2rem;
+        }
+        #dpView p:not(.stat) { font-size: 1.15rem; margin-bottom: 1.2rem;
+        }
+        .history-actions { flex-direction: column; align-items: stretch;
+        }
+        .history-actions button { width: 100%; margin: 6px 0;
+        }
+        #dpView .page-header { padding-left: 0; padding-right: 0; align-items: center;
+        }
+        #dpView .page-header h2 { font-size: 7.5vw; max-width: 95%; padding: 0; text-align: center;
+        line-height: 1.2; }
+        #dpView .page-header .sub-heading { font-size: 3.5vw; max-width: 95%; padding: 0;
+        text-align: center; margin-top: 10px; }
+        .topic-item-custom { padding: 0.8rem 1.2rem;
+        }
+        .topic-item-name { font-size: 1.05rem;
+        }
+        .topic-item-question-count { font-size: 0.85em;
+        }
+        .small-history-btn { padding: 0.6rem 0.8rem; font-size: 1rem;
+        }
+        .qb-list-item { padding: 12px 15px; margin-bottom: 8px;
+        }
+        .qb-list-item .icon { font-size: 1.5rem; margin-right: 10px;
+        }
+        .qb-list-item .subject-name { font-size: 1rem;
+        }
+        .qb-list-item .progress-percentage { font-size: 0.9rem; margin-right: 10px;
+        }
+        .qb-list-item .arrow-icon { font-size: 1rem;
+        }
+        }
+        @media (max-width: 360px) {
+        body { padding: 5px;
+        }
+        #dp-wrap { padding: 1.2rem; margin: 0.8rem auto; border-radius: 15px;
+        }
+        #dp-wrap::before { border-radius: 10px;
+        }
+        #dpView .page-header h2 { font-size: 8vw;
+        }
+        #dpView .page-header .sub-heading { font-size: 4vw;
+        }
+        button, .file-upload-btn { padding: .6rem 1rem; font-size: 0.9rem;
+        }
+        .option-card { padding: 0.8rem; font-size: 0.95rem;
+        }
+        .topic-item-custom { padding: 0.7rem 1rem;
+        }
+        .topic-item-name { font-size: 0.95rem;
+        }
+        .topic-item-question-count { font-size: 0.8em;
+        }
+        .small-history-btn { padding: 0.5rem 0.7rem; font-size: 0.9rem;
+        }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="theme-toggle" onclick="toggleDark()">🌓</button>
+    <div id="progressBar"><div id="progressFill"></div></div>
+
+    <div id="dp-wrap">
+        <h2>🦷 Smart Pulse – Quiz App</h2>
+
+        <div id="user-status">
+            <div id="user-status-info">
+                Logged in as: <span id="user-email"></span>
+                <button id="logout-btn">Log Out</button>
+            </div>
+            <div id="sync-controls">
+                <button id="upload-btn" onclick="uploadDataToCloud()">Save Progress ⬆️</button>
+                <button id="download-btn" onclick="downloadDataFromCloud()">Load Progress ⬇️</button>
+            </div>
+        </div>
+
+        <div id="auth-container">
+            <div id="app-loader"><p>Loading...</p></div>
+            <div id="login-view">
+                <h3>Login</h3>
+                <input type="email" id="login-email" placeholder="Email">
+                <input type="password" id="login-password" placeholder="Password">
+                <button id="login-btn">Login</button>
+                <p id="auth-error"></p>
+                </div>
+        </div>
+        
+        <div id="app-content">
+            <div id="fileActions" style="text-align: center; margin-top: 1.5rem;"></div>
+            <div id="dpView"></div>
+        </div>
+    </div>
+
+
+    <script>
+        // PASTE YOUR FIREBASE CONFIG HERE
+        const firebaseConfig = {
+            apiKey: "YOUR_KEY_HERE",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+    </script>
+    
+
+    <script>
+    (() => {
+        const $ = id => document.getElementById(id);
+        
+        let currentUserId = null; 
+        let dbUserDataDoc = null; 
+
+        const progressStorage = localforage.createInstance({ name: 'dentalPulseProgress' });
+        const historyStorage = localforage.createInstance({ name: 'dentalPulseHistory' });
+        const bookmarkStorage = localforage.createInstance({ name: 'dentalPulseBookmarks' });
+        const heartStorage = localforage.createInstance({ name: 'dentalPulseHearts' }); 
+        const orderStorage = localforage.createInstance({ name: 'dentalPulseOrder' });
+
+        let fileData = {}, currentFile = null, current = null, idx = 0, answers = [];
+        let currentHistoryQuizContext = null;
+        let lastViewWasScorecard = false;
+        let timerInterval;
+        let currentSubjectOrder = []; 
+        let isReordering = false;
+        let currentQuestionStartTime;
+        let quizStartTime;
+        let currentFileBookmarks = []; 
+        let currentFileHearts = []; 
+
+        // ---*** THIS LIST TELLS THE APP WHAT TO LOAD ***---
+        const QUIZ_FILES_TO_LOAD = [
+            {
+                name: "OMFSPULSE.txt",
+                url: "OMFSPULSE.txt" // It will look for this file in the same folder
+            }
+            // If you add more, just put them here:
+            // { name: "Anatomy.txt", url: "Anatomy.txt" }
+        ];
+
+        function setupUserDb(userId) {
+            if (!userId) {
+                console.error("No user ID, cannot set up database paths.");
+                return;
+            }
+            currentUserId = userId;
+            dbUserDataDoc = db.collection('users').doc(currentUserId);
+        }
+
+        function clearLocalData() {
+            currentUserId = null;
+            dbUserDataDoc = null;
+            currentFile = null;
+            current = null;
+            idx = 0;
+            answers = [];
+            currentFileBookmarks = [];
+            currentFileHearts = [];
+            $('dpView').innerHTML = '';
+            $('fileActions').innerHTML = '';
+        }
+
+        window.toggleDark = () => document.body.classList.toggle("dark");
+        function formatTime(ms) { const totalSeconds = Math.floor(ms / 1000); const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60; return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        function startQuestionTimer() { if (timerInterval) clearInterval(timerInterval); currentQuestionStartTime = Date.now();
+        timerInterval = setInterval(() => { if ($('stopwatch')) $('stopwatch').textContent = `Time: ${formatTime(Date.now() - currentQuestionStartTime)}`; }, 1000);
+        }
+        function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null;
+        } }
+
+        const saveProgress = async () => { 
+            if (currentFile && current) { 
+                const key = `quizProgress_${currentFile}_${current.title}`;
+                try { 
+                    await progressStorage.setItem(key, { answers: answers, currentQuestionIndex: idx }); 
+                } catch (e) { console.error("Error saving progress:", e); } 
+            } 
+        };
+        const loadProgress = async (fname, sectionTitle) => { 
+            const key = `quizProgress_${fname}_${sectionTitle}`;
+            try { 
+                const savedData = await progressStorage.getItem(key);
+                if (savedData) {
+                    answers = savedData.answers || new Array(current?.qs?.length || 0).fill(null);
+                    idx = savedData.currentQuestionIndex || 0; 
+                    return true; 
+                }
+            } catch (e) { console.error("Error loading progress:", e); } 
+            return false; 
+        };
+        const clearProgress = async (fname, sectionTitle) => { 
+            const key = `quizProgress_${fname}_${sectionTitle}`; 
+            try { 
+                await progressStorage.removeItem(key);
+            } catch (e) { console.error("Error clearing progress:", e); } 
+        };
+        const saveQuizToHistory = async (fname, sectionTitle, quizResults) => { 
+            const historyKey = `quizHistory_${fname}_${sectionTitle}`;
+            try { 
+                let history = (await historyStorage.getItem(historyKey)) || [];
+                if (!Array.isArray(history)) history = [];
+                history.push(quizResults);
+                await historyStorage.setItem(historyKey, history);
+            } catch (e) { console.error("Error saving history:", e); } 
+        };
+        
+        window.clearHistory = async (fname, sectionTitle, indexToDelete = -1) => { 
+            const historyKey = `quizHistory_${fname}_${sectionTitle}`;
+            try { 
+                let history = (await historyStorage.getItem(historyKey)) || [];
+                if (!Array.isArray(history)) history = [];
+
+                if (indexToDelete !== -1) { 
+                    showConfirmationModal(`Are you sure you want to delete this specific quiz attempt?`, async () => {
+                        if (indexToDelete >= 0 && indexToDelete < history.length) { 
+                            history.splice(indexToDelete, 1); 
+                            await historyStorage.setItem(historyKey, history); 
+                        }
+                        await window.showHistory(fname, sectionTitle, 'fromHistoryDelete');
+                    });
+                } else { 
+                    showConfirmationModal(`Are you sure you want to delete ALL history for "${sectionTitle}"?`, async () => {
+                        await historyStorage.removeItem(historyKey);
+                        await window.showHistory(fname, sectionTitle, 'fromHistoryDelete');
+                    });
+                } 
+            } catch (e) { 
+                console.error("Error clearing history:", e);
+                showSimpleModal("An error occurred while clearing history."); 
+                await window.showHistory(fname, sectionTitle, 'fromHistoryDelete');
+            } 
+        };
+        
+        window.clearAllSectionHistoryForFile = async (fname) => { 
+            if (!fileData[fname]) return;
+            showConfirmationModal(`Are you sure you want to delete ALL quiz history for all topics in this subject?`, async () => {
+                try { 
+                    const sections = fileData[fname]; 
+                    if (sections && Array.isArray(sections)) { 
+                        for (const s of sections) { 
+                            if(s && typeof s.title === 'string'){ 
+                                const historyKey = `quizHistory_${fname}_${s.title}`; 
+                                await historyStorage.removeItem(historyKey); 
+                            } 
+                        } 
+                    } 
+                    await showSectionList(fname); 
+                } catch (e) { 
+                    showSimpleModal("An error occurred while clearing history for this subject."); 
+                    console.error("Error clearing all section history:", e); 
+                    await showSectionList(fname);
+                } 
+            });
+        };
+
+        const saveOrder = async () => {
+            try {
+                await orderStorage.setItem('subjectOrder', currentSubjectOrder);
+            } catch (e) {
+                console.error("Error saving subject order:", e);
+                showSimpleModal("Error saving file order.");
+            }
+        };
+
+        const loadOrder = async () => {
+            try {
+                const savedOrder = (await orderStorage.getItem('subjectOrder')) || [];
+                return savedOrder;
+            } catch (e) {
+                console.error("Error loading subject order:", e);
+            }
+            return [];
+        };
+
+        window.toggleReorder = async (btn) => {
+            isReordering = !isReordering;
+            if (isReordering) {
+                btn.textContent = 'Save Order';
+                btn.classList.add('active');
+            } else {
+                await saveOrder();
+                btn.textContent = 'Edit Order';
+                btn.classList.remove('active');
+            }
+            await showFileList(); 
+        };
+        
+        window.moveSubject = async (fname, direction) => {
+            const index = currentSubjectOrder.indexOf(fname);
+            if (index === -1) return; 
+
+            if (direction === 'up' && index > 0) {
+                [currentSubjectOrder[index], currentSubjectOrder[index - 1]] = [currentSubjectOrder[index - 1], currentSubjectOrder[index]];
+            } else if (direction === 'down' && index < currentSubjectOrder.length - 1) {
+                [currentSubjectOrder[index], currentSubjectOrder[index + 1]] = [currentSubjectOrder[index + 1], currentSubjectOrder[index]];
+            }
+            await saveOrder();
+            await showFileList(); 
+        };
+                
+        function showSimpleModal(message) {
+            removeConfirmationModal(); 
+            const overlay = document.createElement('div');
+            overlay.id = 'confirmation-overlay';
+            const modal = document.createElement('div');
+            modal.id = 'confirmation-modal';
+            modal.innerHTML = `
+                <p>${message}</p>
+                <div class="modal-buttons">
+                    <button class="confirm-yes" onclick="removeConfirmationModal()">OK</button>
+                </div>
+            `;
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+        }
+        function showConfirmationModal(message, onConfirm) {
+            removeConfirmationModal();
+            const overlay = document.createElement('div');
+            overlay.id = 'confirmation-overlay';
+            const modal = document.createElement('div');
+            modal.id = 'confirmation-modal';
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = 'Yes';
+            confirmBtn.className = 'confirm-yes';
+            confirmBtn.onclick = () => {
+                removeConfirmationModal();
+                onConfirm(); 
+            };
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'No';
+            cancelBtn.className = 'confirm-no';
+            cancelBtn.onclick = () => removeConfirmationModal();
+            modal.innerHTML = `<p>${message}</p>`;
+            const buttonDiv = document.createElement('div');
+            buttonDiv.className = 'modal-buttons';
+            buttonDiv.appendChild(confirmBtn);
+            buttonDiv.appendChild(cancelBtn);
+            modal.appendChild(buttonDiv);
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+        }
+        window.removeConfirmationModal = () => {
+            const overlay = document.getElementById('confirmation-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        };
+
+        window.showFileList = async () => { 
+            stopTimer();
+            currentFile = null; 
+            lastViewWasScorecard = false; 
+            
+            let subjectKeys = Object.keys(fileData);
+            if (subjectKeys.length === 0) { 
+                $('dpView').innerHTML = `<div id="app-loader" style="display: block;"><p>Loading quizzes...</p></div>`;
+                $('fileActions').innerHTML = ''; 
+                return;
+            }
+
+            let savedOrder = await loadOrder();
+            currentSubjectOrder = savedOrder.filter(fname => subjectKeys.includes(fname));
+            subjectKeys.forEach(fname => {
+                if (!currentSubjectOrder.includes(fname)) {
+                    currentSubjectOrder.push(fname);
+                }
+            });
+            await saveOrder();
+
+            let html = `<h3>Subject Wise QB
+                            <button class="small-history-btn reorder-btn ${isReordering ? 'active' : ''}" 
+                                    onclick="toggleReorder(this)">
+                                ${isReordering ? 'Save Order' : 'Edit Order'}
+                            </button>
+                       </h3>
+                       <ul class="qb-list">`; 
+            
+            try { 
+                for (const [idx, fname] of currentSubjectOrder.entries()) { 
+                    if (!fileData[fname]) continue; 
+                    const safeFname = fname.replace(/'/g, "\\'");
+                    const cleanedFileName = fname.replace(/\.txt$/i, '');
+                    let attemptedTopicsCount = 0; 
+                    const sections = fileData[fname]; 
+                    if (!Array.isArray(sections)) { 
+                        console.error(`Data for "${fname}" is not an array. Skipping in file list.`);
+                        continue; 
+                    } 
+                    const totalTopics = sections.length;
+                    
+                    for (const [s_idx, s] of sections.entries()) { 
+                        if (!s || typeof s.title !== 'string') { 
+                            console.error(`Invalid section data found in "${fname}" at index ${s_idx}. Skipping section.`);
+                            continue; 
+                        } 
+                        try { 
+                            const historyKey = `quizHistory_${fname}_${s.title}`;
+                            const history = await historyStorage.getItem(historyKey);
+                            if (history && Array.isArray(history) && history.length > 0) { 
+                                attemptedTopicsCount++;
+                            } 
+                        } catch (histErr) { 
+                            console.error(`Error fetching history for ${fname} - ${s.title}:`, histErr);
+                        } 
+                    } 
+                    
+                    const percentageAttempted = totalTopics > 0 ?
+                    ((attemptedTopicsCount / totalTopics) * 100).toFixed(0) : 0; 
+                    let icon = '📚'; 
+                    if (cleanedFileName.toLowerCase().includes('anatomy')) icon = '🧠';
+                    else if (cleanedFileName.toLowerCase().includes('pathology')) icon = '🔬'; 
+                    else if (cleanedFileName.toLowerCase().includes('surgery')) icon = '🔪'; 
+                    else if (cleanedFileName.toLowerCase().includes('biochemistry')) icon = '🧪';
+                    else if (cleanedFileName.toLowerCase().includes('medicine')) icon = '💊'; 
+                    else if (cleanedFileName.toLowerCase().includes('microbiology')) icon = '🦠'; 
+                    else if (cleanedFileName.toLowerCase().includes('pharmacology')) icon = '💉';
+                    else if (cleanedFileName.toLowerCase().includes('dental materials')) icon = '🦷'; 
+                    else if (cleanedFileName.toLowerCase().includes('prosthodontics')) icon = '⚙️'; 
+                    else if (cleanedFileName.toLowerCase().includes('pedodontics')) icon = '👶';
+                    else if (cleanedFileName.toLowerCase().includes('public health dentistry')) icon = '🌎'; 
+                    else if (cleanedFileName.toLowerCase().includes('oral surgery')) icon = '👄';
+                    else if (cleanedFileName.toLowerCase().includes('physiology')) icon = '🚶'; 
+                    
+                    const clickAction = isReordering ? 'event.preventDefault()' : `showSectionList('${safeFname}')`;
+
+                    html += `<div class="qb-item-wrapper"> 
+                              <li class="qb-list-item ${isReordering ? 'reordering' : ''}">
+                                <span class="icon">${icon}</span> 
+                                <span class="subject-name" onclick="${clickAction}">${cleanedFileName}</span> 
+                                <span class="progress-percentage">${percentageAttempted}%</span> 
+                                <span class="arrow-icon" onclick="${clickAction}">›</span> 
+                                
+                                <div class="reorder-controls">
+                                    <button onclick="moveSubject('${safeFname}', 'up')" ${idx === 0 ? 'disabled' : ''}>🔼</button>
+                                    <button onclick="moveSubject('${safeFname}', 'down')" ${idx === currentSubjectOrder.length - 1 ? 'disabled' : ''}>🔽</button>
+                                </div>
+                              </li> 
+                           </div>`;
+                } 
+                html += '</ul>';
+                $('fileActions').innerHTML = ``;
+            } catch (e) { 
+                console.error("Error building file list HTML:", e);
+                html = `<p style="color: red; text-align: center;">Error displaying file list. Local data might be corrupted.</p>`;
+                $('fileActions').innerHTML = ``;
+            } 
+            
+            $('dpView').innerHTML = html;
+        };
+
+        function parse(text) { 
+            if (typeof text !== 'string' || text.length === 0) { return []; } 
+            const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+            const headingRE = /^\s*#+\s*(.+?)\s*(?:\(\s*\d+\s*Questions?\s*\))?\s*$/i; 
+            const questionStartRE = /^\s*(\d+)\.\s*/; 
+            const optionRE = /^\s*([a-d])\)\s*([^\n]+)/i; 
+            const answerRE = /^\s*\*\*\s*Answer\s*:\s*([a-d])\s*\**\s*$/i;
+            let secs = [], cur = null, buf = [], state = 'seeking_heading'; 
+            let lineNum = 0;
+            const flush = () => { 
+                if (!cur || !buf.length) { buf = []; return; } 
+                const blockText = buf.join('\n').trim();
+                if (!blockText) { buf = []; return; } 
+                if (state !== 'in_question') { buf = []; return; } 
+                const qMatch = blockText.match(questionStartRE);
+                if (!qMatch) { buf = []; return; } 
+                let qText = ''; 
+                let opts = []; 
+                let ansLetter = null; 
+                let blockLines = blockText.split('\n'); 
+                let qTextEndLine = -1;
+                for (let i = 0; i < blockLines.length; i++) { 
+                    if (optionRE.test(blockLines[i])) { qTextEndLine = i; break; } 
+                } 
+                if (qTextEndLine === -1 && !answerRE.test(blockLines[blockLines.length - 1])) { buf = []; return; } 
+                qText = blockLines.slice(0, qTextEndLine > 0 ? qTextEndLine : blockLines.length).join('\n').replace(questionStartRE, '').trim();
+                for (let i = (qTextEndLine > 0 ? qTextEndLine : 0) ; i < blockLines.length; i++) { 
+                    const line = blockLines[i];
+                    const optMatch = line.match(optionRE); 
+                    const ansMatch = line.match(answerRE); 
+                    if (optMatch) { 
+                        opts.push({ letter: optMatch[1].toUpperCase(), text: optMatch[2].trim() });
+                    } else if (ansMatch) { 
+                        ansLetter = ansMatch[1].toUpperCase();
+                        break; 
+                    } 
+                } 
+                if (!qText || opts.length < 2 || !ansLetter || !opts.some(opt => opt.letter === ansLetter)) { 
+                    buf = [];
+                    return; 
+                } 
+                cur.qs.push({ q: qText, opts, ans: ansLetter });
+                buf = []; 
+            }; 
+            lines.forEach((ln, idx) => { 
+                lineNum = idx + 1; 
+                const cleanedLn = ln.trim(); 
+                if (!cleanedLn) return; 
+                const hMatch = cleanedLn.match(headingRE); 
+                const qMatch = cleanedLn.match(questionStartRE); 
+                const aMatch = cleanedLn.match(answerRE); 
+                if (hMatch && hMatch[1]) { 
+                    flush(); 
+                    if (cur && cur.qs.length > 0) { secs.push(cur); } 
+                    cur = { title: hMatch[1].trim(), qs: [] }; 
+                    state = 'seeking_question'; 
+                    buf = []; 
+                } else if (qMatch && cur && (state === 'seeking_question' || state === 'in_question')) { 
+                    flush(); 
+                    state = 'in_question'; 
+                    buf = [ln]; 
+                } else if (cur && state === 'in_question') { 
+                    buf.push(ln);
+                    if(aMatch) { flush(); state = 'seeking_question'; } 
+                } 
+            });
+            flush(); 
+            if (cur && cur.qs.length > 0) { secs.push(cur); } 
+            return secs;
+        }
+
+        window.dpStart = async (fname, i) => {
+            if (!fileData || !fileData[fname] || !Array.isArray(fileData[fname]) || i < 0 || i >= fileData[fname].length) {
+                await showFileList();
+                return;
+            }
+            current = fileData[fname][i];
+            if (!current || typeof current.title !== 'string' || !Array.isArray(current.qs)) {
+                await showSectionList(fname);
+                return;
+            }
+            currentFile = fname;
+            quizStartTime = Date.now();
+            lastViewWasScorecard = false;
+            
+            if (!(await loadProgress(fname, current.title))) {
+                idx = 0;
+                answers = new Array(current.qs ? current.qs.length : 0).fill(null);
+            }
+            
+            try {
+                currentFileBookmarks = await bookmarkStorage.getItem(`bookmarks_${currentFile}`) || [];
+            } catch (e) {
+                console.error("Error loading bookmarks:", e);
+                currentFileBookmarks = [];
+            }
+            
+            try {
+                currentFileHearts = await heartStorage.getItem(`hearts_${currentFile}`) || [];
+            } catch (e) {
+                console.error("Error loading hearts:", e);
+                currentFileHearts = [];
+            }
+
+            startQuestionTimer();
+            renderQ();
+            $('fileActions').innerHTML = '';
+        };
+
+        function renderQ() {
+            if (!current || !Array.isArray(current.qs) || idx < 0 || idx >= current.qs.length) {
+                if (currentFile) showSectionList(currentFile); else showFileList();
+                return;
+            }
+            const q = current.qs[idx];
+            if (!q || typeof q.q !== 'string' || !Array.isArray(q.opts) || typeof q.ans !== 'string') {
+                if (idx < current.qs.length - 1) { dpNext(); } else { confirmSubmit(); }
+                return;
+            }
+            
+            const saved = answers[idx];
+            $('progressFill').style.width = ((idx + 1) / current.qs.length) * 100 + '%';
+            startQuestionTimer();
+            let html = `<button class="back-btn" onclick="showSectionList('${currentFile.replace(/'/g, "\\'")}')">← Back to Topics</button>`;
+            html += `<div id="stopwatch">Time: ${formatTime(Date.now() - currentQuestionStartTime)}</div><h4>${current.title}</h4>`;
+            const topicTitle = q._originalTopic || current.title;
+            const qIndex = (q._originalIndex !== undefined) ? q._originalIndex : idx;
+            const isSaved = currentFileBookmarks.some(b => b.topicTitle === topicTitle && b.qIndex === qIndex);
+            const saveIcon = isSaved ? '⭐' : '☆';
+            const isHearted = currentFileHearts.some(h => h.topicTitle === topicTitle && h.qIndex === qIndex);
+            const heartIcon = isHearted ? '❤️' : '♡';
+            html += `<div class="quiz-util-top">
+                         <button onclick="toggleHeartQuestion()" title="Mark as important" style="font-size: 1.2rem; padding: 0.5rem 0.7rem;">${heartIcon}</button>
+                         <button onclick="toggleSaveQuestion()" title="Save Question" style="font-size: 1.2rem; padding: 0.5rem 0.7rem;">${saveIcon}</button>
+                         <button onclick="renderQuestionMenu()">Jump to Question</button>
+                     </div>`;
+            html += `<div id="jumpMenu" style="margin-bottom: 1rem; border-top: none; margin-top: 0; padding-top: 0;"></div>`;
+            if (q.image) {
+                html += `<div style="text-align:center; margin-bottom: 20px;"
+                class="image-container single-image"><img src="${q.image}" alt="Question Image" style="max-width:100%; height:auto; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"></div>`;
+            }
+            
+            html += `<p id="questionText"><strong>Q${idx + 1}:</strong> ${q.q}</p><div id="dpOpts">`;
+            
+            q.opts.forEach(o => {
+                if (typeof o !== 'object' || !o.letter || o.text === undefined) { 
+                    return;
+                }
+                let cls = 'option-card';
+                let onClick = `onclick="dpChoose('${o.letter.replace(/'/g, "\\'")}', '${q.ans.replace(/'/g, "\\'")}', this)"`;
+                if (saved) {
+                    cls += ' selected';
+                    onClick = '';
+                    if (saved.selected === o.letter) cls += saved.correct ? ' correct' : ' incorrect';
+                    else if (o.letter === q.ans && !saved.correct) cls += ' correctAnswer';
+                }
+                html += `<div class="${cls}" ${onClick}><strong>${o.letter})</strong> ${o.text}</div>`;
+            });
+            
+            html += `</div>`;
+            html += `<div id="explanation-container" style="display:none;"></div>`;
+            
+            html += `<div class="quiz-nav-bottom" style="margin-top:1.5rem;">
+                        <button onclick="dpPrev()" ${idx > 0 ? '' : 'disabled'}>Prev</button>
+                        ${idx < current.qs.length - 1 ? `<button onclick="dpNext()">Next</button>` : `<button onclick="confirmSubmit()">Finish & Submit</button>`}
+                     </div>`;
+            if (saved && (q.explanation || (q.explanationImages && q.explanationImages.length > 0))) {
+                 html += `<div style="text-align:center; margin-top: 1rem;">
+                            <button onclick="toggleExplanation()" style="flex-grow: 0; background: var(--light-back-button-bg); color: var(--light-back-button-color); border: var(--light-back-button-border); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);">See Explanation</button>
+                         </div>`;
+            }
+
+            html += `<p class="stat">${idx + 1} / ${current.qs.length}</p>`;
+            $('dpView').innerHTML = html;
+        }
+
+        window.toggleExplanation = () => { 
+            if (!current || !current.qs || !current.qs[idx]) return;
+            const explanationContainer = $('explanation-container'); 
+            if (explanationContainer.style.display === 'none') { 
+                const q = current.qs[idx];
+                let explanationHtml = `<h4 style="text-align: left; margin-bottom: 1rem;">Explanation</h4>`; 
+                if (q.explanation) { 
+                    explanationHtml += `<p style="margin-bottom: 1.5rem;">${q.explanation}</p>`;
+                } 
+                if (q.explanationImages && q.explanationImages.length > 0) { 
+                    explanationHtml += `<div class="image-container explanation-images" style="justify-content: flex-start;">`;
+                    q.explanationImages.forEach(imgSrc => { 
+                        explanationHtml += `<img src="${imgSrc}" alt="Explanation Image" style="max-width:100%; height:auto; max-height:300px; object-fit: contain; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">`; 
+                    });
+                    explanationHtml += `</div>`; 
+                } 
+                if (q.explanation || (q.explanationImages && q.explanationImages.length > 0)) { 
+                    explanationContainer.innerHTML = explanationHtml;
+                    explanationContainer.style.display = 'block'; 
+                } 
+            } else { 
+                explanationContainer.style.display = 'none';
+            } 
+        };
+        
+        window.dpChoose = (v, ans, element) => { 
+            if (!current || !current.qs || !current.qs[idx]) return;
+            if (answers[idx] !== null) return; 
+            const correct = v === ans; 
+            answers[idx] = { selected: v, correct };
+            if (!correct && navigator.vibrate) navigator.vibrate(200); 
+            saveProgress(); 
+            Array.from(element.parentNode.children).forEach(o => { 
+                o.classList.add('selected'); 
+                o.onclick = null; 
+            });
+            if (correct) {
+                element.classList.add('correct');
+            } else { 
+                element.classList.add('incorrect');
+                Array.from(element.parentNode.children).forEach(o => { 
+                    if (o.innerText.startsWith(ans + ')')) o.classList.add('correctAnswer');
+                }); 
+            } 
+            renderQ(); 
+        };
+        
+        window.dpNext = () => { if (current && current.qs && idx < current.qs.length - 1) { idx++; renderQ(); saveProgress(); } };
+        window.dpPrev = () => { if (idx > 0) { idx--; renderQ(); saveProgress(); } };
+        window.confirmSubmit = () => {
+            showConfirmationModal('Are you sure you want to finish and submit?', dpSubmit);
+        };
+        
+        window.renderQuestionMenu = () => {
+            const div = $('jumpMenu');
+            if (div.innerHTML.trim() !== '') {
+                div.innerHTML = '';
+                div.style.borderTop = 'none';
+                div.style.paddingTop = '0';
+                div.style.marginTop = '0';
+                return;
+            }
+            if (!current || !Array.isArray(current.qs)) { 
+                div.innerHTML = '<p style="text-align: center; color: gray;">No questions to jump to.</p>';
+                return; 
+            } 
+            let html = `<p><strong>Jump to:</strong></p><div style="display:flex;flex-wrap:wrap;gap:.6rem;justify-content:center">`;
+            for (let i = 0; i < current.qs.length; i++) { 
+                const q = current.qs[i];
+                const topicTitle = q._originalTopic || current.title;
+                const qIndex = (q._originalIndex !== undefined) ? q._originalIndex : i;
+                const isHearted = currentFileHearts.some(h => h.topicTitle === topicTitle && h.qIndex === qIndex);
+                if (isHearted) {
+                    html += `<button onclick="jumpTo(${i})" style="background: white; color: #dc143c; border: 1px solid #dc143c; border-radius: 50%; width: 40px; height: 40px; padding: 0.5rem; font-size: 1.2rem; line-height: 1;">❤️</button>`;
+                } else {
+                    let bg = 'var(--light-jump-neutral-bg)', color = 'var(--light-jump-neutral-color)', border = 'var(--light-jump-border)';
+                    if (answers[i]?.correct) { 
+                        bg = 'var(--light-jump-correct-bg)';
+                        color = 'var(--light-jump-correct-color)'; border = 'var(--light-correct-border)'; 
+                    } else if (answers[i] && !answers[i].correct) { 
+                        bg = 'var(--light-jump-incorrect-bg)';
+                        color = 'var(--light-jump-incorrect-color)'; border = 'var(--light-incorrect-border)'; 
+                    } 
+                    html += `<button onclick="jumpTo(${i})" style="background:${bg};color:${color};border:1px solid ${border};">${i + 1}</button>`;
+                }
+            } 
+            html += '</div>';
+            div.innerHTML = html; 
+            div.style.borderTop = '1px dashed var(--light-option-border)';
+            div.style.paddingTop = '1.2rem';
+            div.style.marginTop = '1rem';
+        };
+        window.jumpTo = i => { if (current && current.qs && i >= 0 && i < current.qs.length) { idx = i;
+        renderQ(); saveProgress(); } else { console.error("Invalid index for jumpTo:", i); } };
+        
+        window.toggleHeartQuestion = async () => {
+            if (!current || !current.qs || !current.qs[idx] || !currentFile) return;
+            const q = current.qs[idx];
+            const topicTitle = q._originalTopic || current.title;
+            const qIndex = (q._originalIndex !== undefined) ? q._originalIndex : idx;
+            const heartKey = `hearts_${currentFile}`;
+            const qRef = { topicTitle: topicTitle, qIndex: qIndex };
+            
+            const existingIndex = currentFileHearts.findIndex(h => h.topicTitle === qRef.topicTitle && h.qIndex === qIndex);
+            if (existingIndex > -1) {
+                currentFileHearts.splice(existingIndex, 1);
+            } else {
+                currentFileHearts.push(qRef);
+            }
+
+            try {
+                await heartStorage.setItem(heartKey, currentFileHearts);
+            } catch (e) {
+                console.error("Error saving hearts:", e);
+                showSimpleModal("Error saving heart.");
+                if (existingIndex > -1) { currentFileHearts.push(qRef); } else { currentFileHearts.pop(); }
+            }
+            renderQ();
+        };
+
+        window.toggleSaveQuestion = async () => {
+            if (!current || !current.qs || !current.qs[idx] || !currentFile) return;
+            const q = current.qs[idx];
+            const topicTitle = q._originalTopic || current.title;
+            const qIndex = (q._originalIndex !== undefined) ? q._originalIndex : idx;
+            const bookmarkKey = `bookmarks_${currentFile}`;
+            const qRef = { topicTitle: topicTitle, qIndex: qIndex };
+            
+            const existingIndex = currentFileBookmarks.findIndex(b => b.topicTitle === qRef.topicTitle && b.qIndex === qIndex);
+            if (existingIndex > -1) {
+                currentFileBookmarks.splice(existingIndex, 1);
+            } else {
+                currentFileBookmarks.push(qRef);
+            }
+
+            try {
+                await bookmarkStorage.setItem(bookmarkKey, currentFileBookmarks);
+            } catch (e) {
+                console.error("Error saving bookmarks:", e);
+                showSimpleModal("Error saving bookmark.");
+                if (existingIndex > -1) { currentFileBookmarks.push(qRef); } else { currentFileBookmarks.pop(); }
+            }
+            renderQ();
+        };
+
+        function startVirtualQuiz(fname, virtualTopic, bookmarks, hearts) {
+            current = virtualTopic;
+            currentFile = fname;
+            quizStartTime = Date.now();
+            lastViewWasScorecard = false;
+            
+            idx = 0;
+            answers = new Array(current.qs.length).fill(null);
+            currentFileBookmarks = bookmarks || [];
+            currentFileHearts = hearts || []; 
+            
+            startQuestionTimer();
+            renderQ();
+            $('fileActions').innerHTML = '';
+        }
+
+        window.startSavedQuestionsQuiz = async (fname) => {
+            const bookmarkKey = `bookmarks_${fname}`;
+            const heartKey = `hearts_${fname}`; 
+            let bookmarks = [];
+            let hearts = [];
+            
+            try {
+                bookmarks = await bookmarkStorage.getItem(bookmarkKey) || [];
+            } catch (e) {
+                console.error("Error loading bookmarks:", e);
+                showSimpleModal("Error loading saved questions.");
+                return;
+            }
+            
+            try {
+                hearts = await heartStorage.getItem(heartKey) || [];
+            } catch (e) {
+                console.error("Error loading hearts:", e);
+            }
+            
+            if (bookmarks.length === 0) {
+                showSimpleModal("You have no saved questions for this subject.");
+                return;
+            }
+
+            const topics = fileData[fname];
+            if (!Array.isArray(topics)) {
+                showSimpleModal("Error: Could not load subject topics.");
+                return;
+            }
+
+            let savedQuestionsArray = [];
+            const topicMap = new Map(topics.map(t => [t.title, t]));
+
+            for (const b of bookmarks) {
+                try {
+                    const topic = topicMap.get(b.topicTitle);
+                    if (topic && topic.qs && b.qIndex < topic.qs.length) {
+                        const question = topic.qs[b.qIndex];
+                        if (question) {
+                            const questionCopy = JSON.parse(JSON.stringify(question));
+                            questionCopy.q = `<span style="font-size: 0.9em; color: var(--light-stopwatch-color); display: block; margin-bottom: 8px;">[From: ${b.topicTitle}]</span>${questionCopy.q}`;
+                            questionCopy._originalTopic = b.topicTitle;
+                            questionCopy._originalIndex = b.qIndex;
+                            savedQuestionsArray.push(questionCopy);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error processing bookmark:", b, e);
+                }
+            }
+
+            if (savedQuestionsArray.length === 0) {
+                showSimpleModal("All saved questions appear to be from old or modified topics. Please clear your bookmarks.");
+                return;
+            }
+
+            const virtualTopic = { title: 'Saved Questions', qs: savedQuestionsArray };
+            startVirtualQuiz(fname, virtualTopic, bookmarks, hearts); 
+        };
+
+        window.dpSubmit = async () => {
+            stopTimer();
+            if (!current || !current.title || !Array.isArray(answers)) { 
+                await showFileList(); 
+                return; 
+            } 
+            
+            const totalQuizTime = Date.now() - quizStartTime;
+            const totalQs = current.qs ? current.qs.length : 0; 
+            
+            if (answers.length !== totalQs) { 
+                const correctedAnswers = new Array(totalQs).fill(null);
+                for(let i=0; i< Math.min(answers.length, totalQs); i++) { 
+                    correctedAnswers[i] = answers[i];
+                } 
+                answers = correctedAnswers;
+            } 
+            
+            const correct = answers.filter(a => a?.correct).length;
+            const incorrect = answers.filter(a => a && !a.correct).length; 
+            const skipped = totalQs - correct - incorrect;
+            const score = correct - 0.25 * incorrect; 
+            
+            let quizResults = {
+                title: current.title,
+                total: totalQs,
+                correct: correct,
+                incorrect: incorrect,
+                skipped: skipped,
+                score: score,
+                timestamp: new Date().toISOString(),
+                timeTaken: totalQuizTime,
+                attemptedAnswers: JSON.parse(JSON.stringify(answers)),
+                originalQuestions: current.qs
+            };
+            
+            await saveQuizToHistory(currentFile, current.title, quizResults); 
+            
+            if (current.title !== 'Saved Questions') {
+                await clearProgress(currentFile, current.title);
+            }
+            
+            currentHistoryQuizContext = { 
+                file: currentFile, 
+                section: current.title, 
+                correct: correct, 
+                incorrect: incorrect, 
+                skipped: skipped, 
+                scorecardHtml: null, 
+                answers: quizResults.attemptedAnswers, 
+                questions: quizResults.originalQuestions, 
+                caller: 'fromQuizEnd' 
+            };
+
+            const scorecardHtmlContent = `<h3>🎉 Quiz Completed: ${current.title}</h3> 
+                <div style="display: flex; justify-content: space-around; margin: 1.5rem 0; flex-wrap: wrap; gap: 10px;"> 
+                    <button onclick="showSolutions('correct')" style="background: var(--light-correct-bg); color: var(--light-correct-border); border: 1px solid var(--light-correct-border); padding: 0.8rem 1.2rem; text-transform: none; font-size: 0.95rem;"> ✅ Correct: ${correct} </button> 
+                    <button onclick="showSolutions('incorrect')" 
+                        style="background: var(--light-incorrect-bg); color: var(--light-incorrect-border); border: 1px solid var(--light-incorrect-border); padding: 0.8rem 1.2rem; text-transform: none; font-size: 0.95rem;"> ❌ Incorrect: ${incorrect} </button> 
+                    <button onclick="showSolutions('skipped')" style="background: var(--light-jump-neutral-bg); color: var(--light-jump-neutral-color); border: 1px solid var(--light-jump-border); padding: 0.8rem 1.2rem;
+                        text-transform: none; font-size: 0.95rem;"> ⏭️ Unattempted: ${skipped} </button> 
+                </div> 
+                <p class="stat">🎯 Score: <strong>${score.toFixed(2)}</strong> / ${totalQs}</p> 
+                <p class="stat">⏱️ Time Taken: <strong>${formatTime(totalQuizTime)}</strong></p> 
+                <canvas id="resultChart"></canvas> 
+                <div style="text-align:center;margin-top:2rem; display:flex; flex-direction:column; gap:12px;"> 
+                    <button class="back-btn" onclick="showSectionList('${currentFile.replace(/'/g, "\\'")}')">← Back to Topics</button> 
+                    <button onclick="showSolutions('all')">View All Solutions</button> 
+                </div>`;
+
+            $('dpView').innerHTML = scorecardHtmlContent; 
+            currentHistoryQuizContext.scorecardHtml = scorecardHtmlContent; 
+            lastViewWasScorecard = true;
+
+            const chartCtx = document.getElementById('resultChart')?.getContext('2d'); 
+            if(chartCtx) { 
+                try { 
+                    const chartCorrectColor = getComputedStyle(document.documentElement).getPropertyValue('--light-correct-border').trim(); 
+                    const chartIncorrectColor = getComputedStyle(document.documentElement).getPropertyValue('--light-incorrect-border').trim(); 
+                    const chartSkippedColor = getComputedStyle(document.documentElement).getPropertyValue('--light-progress-bg').trim();
+                    const chartTextColor = getComputedStyle(document.documentElement).getPropertyValue('--light-text-color').trim();
+                    new Chart(chartCtx, {
+                        type: 'doughnut',
+                        data: { 
+                            labels: ['Correct', 'Incorrect', 'Unattempted'], 
+                            datasets: [{ 
+                                data: [correct, incorrect, skipped], 
+                                backgroundColor: [chartCorrectColor, chartIncorrectColor, chartSkippedColor] 
+                            }] 
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true, 
+                            plugins: { 
+                                legend: { position: 'bottom', labels: { color: chartTextColor } }, 
+                                title: { display: true, text: 'Your Performance Breakdown', color: chartTextColor } 
+                            } 
+                        }
+                    });
+                } catch (chartError) { 
+                    console.error("Error creating chart:", chartError);
+                } 
+            } else { 
+                console.error("Could not find resultChart canvas element.");
+            }
+        };
+        
+        window.showSolutions = (filter = 'all', historyAnswers = null, historyQuestions = null) => { 
+            let quizAnswers = historyAnswers || answers; 
+            let quizQuestions = historyQuestions || (current ? current.qs : []); 
+            let backButtonAction = `showFileList()`; 
+            let solutionsTitle = "Solutions";
+            const isFromHistory = !!(historyAnswers && historyQuestions && currentHistoryQuizContext && currentHistoryQuizContext.caller === 'fromHistoryList');
+            if (isFromHistory) { 
+                solutionsTitle = currentHistoryQuizContext.section || "History Solutions"; 
+                const safeFile = (currentHistoryQuizContext.file || '').replace(/'/g, "\\'"); 
+                const safeSection = (solutionsTitle || '').replace(/'/g, "\\'");
+                const safeCaller = (currentHistoryQuizContext.caller || '').replace(/'/g, "\\'"); 
+                if (safeFile && safeSection && safeCaller) { 
+                    backButtonAction = `showHistory('${safeFile}', '${safeSection}', '${safeCaller}')`;
+                } else { 
+                    backButtonAction = `showFileList()`;
+                } 
+            } else if (currentHistoryQuizContext && currentHistoryQuizContext.scorecardHtml) { 
+                solutionsTitle = currentHistoryQuizContext.section || "Quiz Results"; 
+                backButtonAction = `goBackToScorecard()`; 
+            } else if(currentFile) { 
+                solutionsTitle = current ? current.title : "Solutions"; 
+                backButtonAction = `showSectionList('${currentFile.replace(/'/g, "\\'")}')`; 
+            } 
+            let filterTitle = "All Solutions";
+            if (filter === 'correct') filterTitle = "Correct Questions"; 
+            if (filter === 'incorrect') filterTitle = "Incorrect Questions";
+            if (filter === 'skipped') filterTitle = "Unanswered Questions"; 
+            let html = `<button class="back-btn" onclick="${backButtonAction}">← Back</button><h3>${filterTitle}: ${solutionsTitle}</h3>`; 
+            let count = 0;
+            if (!Array.isArray(quizQuestions)) { 
+                console.error("Invalid questions data for showSolutions:", quizQuestions);
+                $('dpView').innerHTML = html + `<p style="color: red; text-align: center;">Error: Could not load questions for solutions view.</p>`; 
+                return;
+            } 
+            quizQuestions.forEach((q, i) => { 
+                if (!q || typeof q.q !== 'string' || !Array.isArray(q.opts) || typeof q.ans !== 'string') { 
+                    return; 
+                } 
+                const userAnswerData = (Array.isArray(quizAnswers) && i < quizAnswers.length) ? quizAnswers[i] : null; 
+                const userAnswer = userAnswerData?.selected; 
+                const isCorrect = userAnswerData?.correct; 
+                const isSkipped = !userAnswerData; 
+                let showThisQuestion = false; 
+                if (filter === 'all') { 
+                    showThisQuestion = true; 
+                } else if (filter === 'correct' && isCorrect) { 
+                    showThisQuestion = true; 
+                } else if (filter === 'incorrect' && userAnswer && !isCorrect) { 
+                    showThisQuestion = true; 
+                } else if (filter === 'skipped' && isSkipped) { 
+                    showThisQuestion = true;
+                } 
+                if (!showThisQuestion) return;
+                count++; 
+                const hasImage = q.image; 
+                html += `<div style="margin-bottom: 2.5rem; padding: 1.5rem; border: 1px solid var(--light-option-border); border-radius: 18px; background: var(--light-option-bg); box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.05);">`;
+                if (hasImage) { 
+                    html += `<div style="text-align:center; margin-bottom: 20px;"><img src="${hasImage}" alt="Question ${i+1} Image" style="max-width:100%; height:auto; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"></div>`;
+                } 
+                html += `<p><strong>Q${i + 1}:</strong> ${q.q}</p><div style="margin-top: 1.2rem;">`;
+                
+                q.opts.forEach(o => { 
+                    if (typeof o !== 'object' || !o.letter || o.text === undefined) return; 
+                    let cls = 'option-card'; 
+                    if (o.letter === q.ans) cls += ' correct'; 
+                    else if (userAnswer && o.letter === userAnswer && !isCorrect) cls += ' incorrect'; 
+                    html += `<div class="${cls}" style="cursor: default;"><strong>${o.letter})</strong> ${o.text}</div>`;
+                }); 
+                
+                html += `</div>`; 
+                if (userAnswer) html += `<p style="margin-top: 15px; font-weight: 600;">Your answer: <span style="color: ${isCorrect ? 'var(--light-correct-border)' : 'var(--light-incorrect-border)'};">${userAnswer}</span></p>`;
+                else html += `<p style="margin-top: 15px; font-weight: 600;">You did not attempt this question.</p>`;
+                html += `<p style="font-weight: 600;">Correct answer: <span style="color: var(--light-correct-border);">${q.ans}</span></p>`; 
+                if (q.explanation || (q.explanationImages && q.explanationImages.length > 0)) { 
+                    html += `<div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed var(--light-option-border);"><h4 style="text-align: left; margin-bottom: 0.5rem;">Explanation</h4>`;
+                    if (q.explanation) { 
+                        html += `<p style="margin-bottom: 1rem;">${q.explanation}</p>`;
+                    } 
+                    if (q.explanationImages && q.explanationImages.length > 0) { 
+                        html += `<div class="image-container explanation-images" style="justify-content: flex-start;">`;
+                        q.explanationImages.forEach(imgSrc => { 
+                            html += `<img src="${imgSrc}" alt="Explanation Image" style="max-width:100%; height:auto; max-height:300px; object-fit: contain; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">`; 
+                        });
+                        html += `</div>`; 
+                    } 
+                    html += `</div>`;
+                } 
+                html += `</div>`;
+            }); 
+            if (count === 0) { 
+                html += `<p style="text-align: center; margin-top: 2rem;">No questions found for this filter.</p>`;
+            } 
+            html += `<div style="text-align:center;margin-top:2rem"><button class="back-btn" onclick="${backButtonAction}">← Back</button></div>`;
+            $('dpView').innerHTML = html; 
+        };
+
+        window.showHistory = async (fname, sectionTitle, caller = 'fromSectionList') => { 
+            if (typeof fname !== 'string' || typeof sectionTitle !== 'string') { 
+                await showFileList(); 
+                return; 
+            } 
+            let historyRecords = [];
+            let displayTitle = `History for: ${sectionTitle}`; 
+            const safeFname = fname.replace(/'/g, "\\'"); 
+            const safeSectionTitle = sectionTitle.replace(/'/g, "\\'"); 
+            let backButtonAction = `showSectionList('${safeFname}')`;
+            if (caller === 'fromQuizEnd' && currentHistoryQuizContext && currentHistoryQuizContext.scorecardHtml) { 
+                backButtonAction = `goBackToScorecard()`;
+            } else { 
+                lastViewWasScorecard = false;
+            } 
+            
+            try { 
+                historyRecords = (await historyStorage.getItem(`quizHistory_${fname}_${sectionTitle}`)) || []; 
+                if (!Array.isArray(historyRecords)) { 
+                    historyRecords = [];
+                    await historyStorage.removeItem(`quizHistory_${fname}_${sectionTitle}`); 
+                } 
+            } catch (e) { 
+                console.error("Error loading history:", e);
+                showSimpleModal("Error loading history data. It might be corrupted."); 
+                historyRecords = [];
+            } 
+            
+            let html = `<button class="back-btn" onclick="${backButtonAction}">← Back</button><h3>${displayTitle}</h3>`;
+            if (historyRecords.length === 0) { 
+                html += `<p style="text-align: center; margin-top: 1.8rem;">No quiz history found for this section.</p>`;
+            } else { 
+                historyRecords.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                html += `<div style="text-align: center; margin-bottom: 1.8rem;"><button class="back-btn" style="background: #dc3545; color: white; border: none;"
+                onclick="clearHistory('${safeFname}', '${safeSectionTitle}')">Reset All History for this Section</button></div>`; 
+                historyRecords.forEach((record, loopIndex) => { 
+                    if (!record || typeof record.timestamp !== 'string' || typeof record.correct !== 'number' || typeof record.total !== 'number' || typeof record.score !== 'number' || typeof record.timeTaken !== 'number') { 
+                        return; 
+                    } 
+                    const date = new Date(record.timestamp).toLocaleString(); 
+                    const originalIndex = historyRecords.length - 1 - loopIndex; 
+                    html += `<div style="margin-bottom: 2rem; padding: 1.5rem; border: 1px solid var(--light-option-border); border-radius: 18px; background: var(--light-option-bg); box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.05);"> 
+                                <h4>Attempt #${loopIndex + 1}</h4> 
+                                <p class="stat">Date & Time: <strong>${date}</strong></p> 
+                                <p class="stat">✅ Correct: ${record.correct} / ${record.total}</p> 
+                                <p class="stat">❌ Incorrect: ${record.incorrect || 0}</p> 
+                                <p class="stat">⏭️ Unattempted: ${record.skipped || 0}</p> 
+                                <p class="stat">🎯 Score: <strong>${record.score.toFixed(2)}</strong></p> 
+                                <p class="stat">⏱️ Time Taken: <strong>${formatTime(record.timeTaken)}</strong></p> 
+                                <div class="history-actions" style="flex-wrap: wrap; justify-content: flex-start; gap: 8px;"> 
+                                    <button class="view-solutions-btn" style="background: #17a2b8;"
+                                        onclick="viewHistorySolutions('${safeFname}', '${safeSectionTitle}', ${originalIndex}, 'all')">All</button> 
+                                    <button class="view-solutions-btn" style="background: var(--light-correct-bg); color: var(--light-correct-border); border: 1px solid var(--light-correct-border);"
+                                        onclick="viewHistorySolutions('${safeFname}', '${safeSectionTitle}', ${originalIndex}, 'correct')">✅ Correct</button> 
+                                    <button class="view-solutions-btn" style="background: var(--light-incorrect-bg); color: var(--light-incorrect-border); border: 1px solid var(--light-incorrect-border);"
+                                        onclick="viewHistorySolutions('${safeFname}', '${safeSectionTitle}', ${originalIndex}, 'incorrect')">❌ Incorrect</button> 
+                                    <button class="view-solutions-btn" style="background: var(--light-jump-neutral-bg); color: var(--light-jump-neutral-color); border: 1px solid var(--light-jump-border);"
+                                        onclick="viewHistorySolutions('${safeFname}', '${safeSectionTitle}', ${originalIndex}, 'skipped')">⏭️ Unanswered</button> 
+                                    <button class="delete-btn" onclick="clearHistory('${safeFname}', '${safeSectionTitle}', ${originalIndex})">Delete</button> 
+                                </div> 
+                            </div>`; 
+                });
+            } 
+            html += `<div style="text-align:center;margin-top:2rem"><button class="back-btn" onclick="${backButtonAction}">← Back</button></div>`;
+            $('dpView').innerHTML = html; 
+        };
+
+        window.showSectionList = async (fname) => {
+            if (typeof fname !== 'string' || !fileData || !Array.isArray(fileData[fname])) {
+                await showFileList();
+                return;
+            }
+            stopTimer();
+            currentFile = fname;
+            lastViewWasScorecard = false;
+            const sections = fileData[fname];
+            const cleanedFileName = fname.replace(/\.txt$/i, '');
+            const safeFname = fname.replace(/'/g, "\\'");
+            
+            $('dpView').innerHTML = `<button class="back-btn" onclick="showFileList()">← Back to Subjects</button>
+                                     <div id="app-loader" style="display: block;"><p>Loading topics for ${cleanedFileName}...</p></div>`;
+            $('fileActions').innerHTML = '';
+
+            const bookmarkKey = `bookmarks_${fname}`;
+            let bookmarks = [];
+            let savedQuestionsCount = 0;
+            
+            try {
+                bookmarks = await bookmarkStorage.getItem(bookmarkKey) || [];
+                if (bookmarks.length > 0) {
+                    const topicMap = new Map(sections.map(t => [t.title, t]));
+                    for (const b of bookmarks) {
+                        const topic = topicMap.get(b.topicTitle);
+                        if (topic && topic.qs && b.qIndex < topic.qs.length) {
+                            savedQuestionsCount++;
+                        }
+                    }
+                }
+
+                let html = `<button class="back-btn" onclick="showFileList()">← Back to Subjects</button>
+                            <div class="page-header">
+                                <h2>${cleanedFileName}</h2>
+                                <p class="sub-heading">SMART PULSE</p>
+                            </div>
+                            <ul class="topic-list">`;
+                if (savedQuestionsCount > 0) {
+                    html += `<li class="topic-item-custom" style="background: linear-gradient(to right, #ffc107, #ff9800); box-shadow: 0 6px 20px rgba(255, 152, 0, 0.3);">
+                                <div class="topic-item-content" onclick="startSavedQuestionsQuiz('${safeFname}')">
+                                    <span class="topic-item-name" 
+                                        style="color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);">⭐ Saved Questions</span>
+                                    <span class="topic-item-question-count" style="color: rgba(255, 255, 255, 0.9); background: rgba(0, 0, 0, 0.15);">${savedQuestionsCount} Questions</span>
+                                </div>
+                                <div class="history-button-wrapper">
+                                    <button class="small-history-btn" onclick="event.stopPropagation(); showHistory('${safeFname}', 'Saved Questions')"> &#128198;</button>
+                                </div>
+                             </li>`;
+                }
+
+                for (const [i, s] of sections.entries()) {
+                    if (!s || typeof s.title !== 'string' || !Array.isArray(s.qs)) {
+                        console.error(`Skipping invalid section structure at index ${i} in ${fname}:`, s);
+                        continue;
+                    }
+                    const progressKey = `quizProgress_${fname}_${s.title}`;
+                    const historyKey = `quizHistory_${fname}_${s.title}`;
+                    const safeSectionTitle = s.title.replace(/'/g, "\\'");
+                    
+                    const savedProgress = await progressStorage.getItem(progressKey);
+                    const history = await historyStorage.getItem(historyKey) || [];
+                    
+                    const hasHistory = history.length > 0;
+                    let attemptedQuestions = 0;
+                    let totalQuestions = s.qs.length;
+                    let questionStatsText = `0/${totalQuestions} Questions`;
+                    let tickIcon = '';
+                    
+                    if (hasHistory) {
+                        tickIcon = '<span class="tick-icon">✅</span>';
+                        const lastHistory = history[history.length - 1];
+                        if (lastHistory && typeof lastHistory.correct === 'number' && typeof lastHistory.incorrect === 'number') {
+                            attemptedQuestions = lastHistory.correct + lastHistory.incorrect;
+                            questionStatsText = `${attemptedQuestions}/${totalQuestions} Questions`;
+                        }
+                    } else if (savedProgress && Array.isArray(savedProgress.answers)) {
+                        attemptedQuestions = savedProgress.answers.filter(a => a !== null).length;
+                        questionStatsText = `${attemptedQuestions}/${totalQuestions} Questions`;
+                    }
+                    
+                    html += `<li class="topic-item-custom">
+                                <div class="topic-item-content" onclick="dpStart('${safeFname}', ${i})">
+                                    <span class="topic-item-name">${s.title}${tickIcon}</span>
+                                    <span class="topic-item-question-count">${questionStatsText}</span>
+                                </div>
+                                <div class="history-button-wrapper">
+                                    <button class="small-history-btn" onclick="event.stopPropagation(); showHistory('${safeFname}', '${safeSectionTitle}')"> &#128198;</button>
+                                </div>
+                            </li>`;
+                }
+                html += '</ul>';
+                html += `<div style="text-align: center; margin-top: 2rem;"><button class="back-btn" style="background: #dc3545; color: white; border: none;" onclick="clearAllSectionHistoryForFile('${safeFname}')">Clear All History for ${cleanedFileName}</button></div>`;
+            
+                $('dpView').innerHTML = html;
+                $('fileActions').innerHTML = '';
+
+            } catch(e) {
+                console.error("Error building section list:", e);
+                $('dpView').innerHTML = `<p style="color:red; text-align:center;">Error displaying topics.</p><button class="back-btn" onclick="showFileList()">← Back to Subjects</button>`;
+            }
+        };
+
+        window.goBackToScorecard = () => { 
+            if (currentHistoryQuizContext && currentHistoryQuizContext.scorecardHtml) { 
+                $('dpView').innerHTML = currentHistoryQuizContext.scorecardHtml;
+                setTimeout(() => { 
+                    const chartCtx = document.getElementById('resultChart')?.getContext('2d'); 
+                    if (chartCtx) { 
+                        try { 
+                            const chartCorrectColor = getComputedStyle(document.documentElement).getPropertyValue('--light-correct-border').trim(); 
+                            const chartIncorrectColor = getComputedStyle(document.documentElement).getPropertyValue('--light-incorrect-border').trim(); 
+                            const chartSkippedColor = getComputedStyle(document.documentElement).getPropertyValue('--light-progress-bg').trim(); 
+                            const chartTextColor = getComputedStyle(document.documentElement).getPropertyValue('--light-text-color').trim(); 
+                            new Chart(chartCtx, { 
+                                type: 'doughnut', 
+                                data: { 
+                                    labels: ['Correct', 'Incorrect', 'Unattempted'], 
+                                    datasets: [{ 
+                                        data: [currentHistoryQuizContext.correct, currentHistoryQuizContext.incorrect, currentHistoryQuizContext.skipped], 
+                                        backgroundColor: [chartCorrectColor, chartIncorrectColor, chartSkippedColor] 
+                                    }] 
+                                }, 
+                                options: { 
+                                    responsive: true, 
+                                    maintainAspectRatio: true, 
+                                    plugins: { 
+                                        legend: { position: 'bottom', labels: { color: chartTextColor } }, 
+                                        title: { display: true, text: 'Your Performance Breakdown', color: chartTextColor } 
+                                    } 
+                                } 
+                            });
+                            lastViewWasScorecard = true; 
+                        } catch (e) { 
+                            console.error("Failed to re-render chart:", e);
+                        } 
+                    } else { 
+                        console.error("Could not find resultChart canvas for goBackToScorecard.");
+                    } 
+                }, 10);
+            } else { 
+                if(currentFile) showSectionList(currentFile);
+                else showFileList(); 
+            } 
+        };
+        
+        window.viewHistorySolutions = async (fname, sectionTitle, recordIndex, filter = 'all') => { 
+            if (typeof fname !== 'string' || typeof sectionTitle !== 'string' || typeof recordIndex !== 'number') { 
+                showSimpleModal("Error: Could not load solutions for this history entry."); 
+                return;
+            } 
+            try { 
+                let history = (await historyStorage.getItem(`quizHistory_${fname}_${sectionTitle}`)) || []; 
+                
+                if (!Array.isArray(history) || recordIndex < 0 || recordIndex >= history.length) { 
+                    console.error("Invalid history data or index:", history, recordIndex);
+                    showSimpleModal("Error: History data not found or corrupted."); 
+                    return; 
+                } 
+                const record = history[recordIndex];
+                if (record && record.attemptedAnswers && record.originalQuestions) { 
+                    currentHistoryQuizContext = { 
+                        file: fname, 
+                        section: sectionTitle, 
+                        answers: record.attemptedAnswers, 
+                        questions: record.originalQuestions, 
+                        caller: 'fromHistoryList' 
+                    };
+                    showSolutions(filter, record.attemptedAnswers, record.originalQuestions); 
+                } else { 
+                    console.error("Invalid record structure in history:", record);
+                    showSimpleModal("Solution data not available or corrupted for this history entry.");
+                } 
+            } catch (e) { 
+                console.error("Error loading history for solutions:", e);
+                showSimpleModal("An error occurred while loading history data."); 
+            } 
+        };
+        
+
+        // --- AUTHENTICATION FUNCTIONS ---
+        
+        window.toggleAuthView = (showSignup) => {
+            $('login-view').style.display = showSignup ? 'none' : 'block';
+            $('signup-view').style.display = showSignup ? 'block' : 'none';
+            $('auth-error').style.display = 'none';
+        };
+
+        async function handleSignUp() {
+            const email = $('signup-email').value;
+            const password = $('signup-password').value;
+            const errorEl = $('auth-error');
+            
+            errorEl.style.display = 'none';
+            if (!email || !password) {
+                errorEl.textContent = 'Please enter an email and password.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            try {
+                await auth.createUserWithEmailAndPassword(email, password);
+            } catch (error) {
+                errorEl.textContent = error.message;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        async function handleLogin() {
+            const email = $('login-email').value;
+            const password = $('login-password').value;
+            const errorEl = $('auth-error');
+
+            errorEl.style.display = 'none';
+            if (!email || !password) {
+                errorEl.textContent = 'Please enter an email and password.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+            } catch (error) {
+                errorEl.textContent = "Error: " + error.message;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                await auth.signOut();
+            } catch (error) {
+                console.error("Error logging out:", error);
+                showSimpleModal("Error logging out. Please try again.");
+            }
+        }
+
+        // --- SYNC FUNCTIONS (Progress Only) ---
+        window.uploadDataToCloud = async () => {
+            if (!dbUserDataDoc) {
+                showSimpleModal("You must be logged in to save to the cloud.");
+                return;
+            }
+
+            showConfirmationModal("This will overwrite your cloud backup with your current local progress, history, and bookmarks. Continue?", async () => {
+                showSimpleModal("Backing up personal data... Please wait.");
+                try {
+                    const allData = {};
+                    
+                    const progressKeys = await progressStorage.keys();
+                    const historyKeys = await historyStorage.keys();
+                    const bookmarkKeys = await bookmarkStorage.keys();
+                    const heartKeys = await heartStorage.keys();
+                    const orderKeys = await orderStorage.keys();
+
+                    allData.progress = {};
+                    for (const key of progressKeys) {
+                        allData.progress[key] = await progressStorage.getItem(key);
+                    }
+                    allData.history = {};
+                    for (const key of historyKeys) {
+                        allData.history[key] = await historyStorage.getItem(key);
+                    }
+                    allData.bookmarks = {};
+                    for (const key of bookmarkKeys) {
+                        allData.bookmarks[key] = await bookmarkStorage.getItem(key);
+                    }
+                    allData.hearts = {};
+                    for (const key of heartKeys) {
+                        allData.hearts[key] = await heartStorage.getItem(key);
+                    }
+                    allData.order = {};
+                    for (const key of orderKeys) {
+                        allData.order[key] = await orderStorage.getItem(key);
+                    }
+
+                    await dbUserDataDoc.set(allData);
+
+                    showSimpleModal("✅ Successfully saved your personal data to the cloud!");
+
+                } catch (e) {
+                    console.error("Error uploading data to cloud:", e);
+                    if (e.message.includes("offline")) {
+                         showSimpleModal("❌ Error: You must be online to save to the cloud.");
+                    } else {
+                        showSimpleModal("❌ Error saving data to the cloud. " + e.message);
+                    }
+                }
+            });
+        };
+
+        window.downloadDataFromCloud = async () => {
+            if (!dbUserDataDoc) {
+                showSimpleModal("You must be logged in to load from the cloud.");
+                return;
+            }
+
+            showConfirmationModal("This will overwrite all local progress on this device with your cloud backup. Your quiz files will not be affected. Continue?", async () => {
+                showSimpleModal("Loading personal data from cloud... Please wait.");
+                try {
+                    const doc = await dbUserDataDoc.get();
+                    if (!doc.exists) {
+                        showSimpleModal("No cloud backup found for this account.");
+                        return;
+                    }
+                    
+                    const allData = doc.data();
+
+                    await progressStorage.clear();
+                    await historyStorage.clear();
+                    await bookmarkStorage.clear();
+                    await heartStorage.clear();
+                    await orderStorage.clear();
+
+                    if (allData.progress) for (const key in allData.progress) await progressStorage.setItem(key, allData.progress[key]);
+                    if (allData.history) for (const key in allData.history) await historyStorage.setItem(key, allData.history[key]);
+                    if (allData.bookmarks) for (const key in allData.bookmarks) await bookmarkStorage.setItem(key, allData.bookmarks[key]);
+                    if (allData.hearts) for (const key in allData.hearts) await heartStorage.setItem(key, allData.hearts[key]);
+                    if (allData.order) for (const key in allData.order) await orderStorage.setItem(key, allData.order[key]);
+
+                    await showFileList();
+
+                    showSimpleModal("✅ Successfully loaded personal data from the cloud!");
+
+                } catch (e) {
+                    console.error("Error downloading data from cloud:", e);
+                    if (e.message.includes("offline")) {
+                         showSimpleModal("❌ Error: You must be online to load from the cloud.");
+                    } else {
+                        showSimpleModal("❌ Error loading data from the cloud. " + e.message);
+                    }
+                }
+            });
+        };
+        
+        async function loadPermanentQuizzes() {
+            $('dpView').innerHTML = `<div id="app-loader" style="display: block;"><p>Downloading quizzes...</p></div>`;
+            fileData = {};
+            let filesLoaded = 0;
+            
+            for (const file of QUIZ_FILES_TO_LOAD) {
+                try {
+                    // *** THIS IS THE NEW FETCH ***
+                    // It's loading from a relative path, e.g., "OMFSPULSE.txt"
+                    const response = await fetch(file.url); 
+                    if (!response.ok) {
+                        throw new Error(`Failed to load ${file.name}: ${response.statusText}`);
+                    }
+                    const text = await response.text();
+                    const parsed = parse(text);
+                    if (parsed && parsed.length > 0) {
+                        fileData[file.name] = parsed;
+                        filesLoaded++;
+                    } else {
+                        console.warn(`Could not parse quiz file: ${file.name}`);
+                    }
+                } catch (e) {
+                    console.error(`Error fetching quiz file ${file.name}:`, e);
+                    showSimpleModal(`Error loading quiz file: ${file.name}. Please check your internet and refresh.`);
+                }
+            }
+            
+            if (filesLoaded === 0 && QUIZ_FILES_TO_LOAD.length > 0) {
+                 $('dpView').innerHTML = `<p style="text-align:center; color: red;">Could not load any quiz files. Please check your internet and refresh.</p>`;
+            } else {
+                await showFileList(); 
+            }
+        }
+
+
+        // --- MAIN APP CONTROLLER (MODIFIED) ---
+        auth.onAuthStateChanged(async (user) => {
+            const authContainer = $('auth-container');
+            const userStatus = $('user-status');
+            const appLoader = $('app-loader');
+            
+            appLoader.style.display = 'block'; 
+            authContainer.style.display = 'none';
+
+            if (user) {
+                $('user-email').textContent = user.email;
+                userStatus.style.display = 'flex'; 
+                authContainer.style.display = 'none'; 
+                setupUserDb(user.uid);
+            } else {
+                userStatus.style.display = 'none'; 
+                authContainer.style.display = 'block'; 
+                clearLocalData(); 
+                toggleAuthView(false); 
+            }
+            
+            if (Object.keys(fileData).length === 0) {
+                await loadPermanentQuizzes();
+            } else {
+                await showFileList();
+            }
+            appLoader.style.display = 'none';
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const authContainer = $('auth-container');
+            const userStatus = $('user-status');
+            const appLoader = $('app-loader');
+
+            if (auth.currentUser) {
+                userStatus.style.display = 'flex';
+                authContainer.style.display = 'none';
+            } else {
+                userStatus.style.display = 'none';
+                authContainer.style.display = 'block';
+                toggleAuthView(false);
+            }
+            
+            $('login-btn').addEventListener('click', handleLogin);
+            $('signup-btn').addEventListener('click', handleSignUp);
+            $('logout-btn').addEventListener('click', handleLogout);
+        });
+
+    })();
+    </script>
+
+</body>
+</html>
